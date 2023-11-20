@@ -1,0 +1,256 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Packages for data analysis
+```{r}
+library(tidyverse)
+library(forecast)
+library(tseries)
+
+```
+
+
+# Data cleaning 
+```{r}
+Covid_Zambia<-data1 %>% select(Date,Country,Confirmed,Deaths) %>% filter(Country=="Zambia")
+Covid_Zambia
+```
+ 
+ 
+# Descriptive statistics of covid cases in Zambia
+```{r}
+covid_19_data %>% summary((Deaths))
+```
+
+
+# Checking if the data is stationary or has some seasonality Using the time plot and the ACF and PACF
+```{r}
+Death<-Covid_Zambia %>% select(Deaths)
+dts<-ts(Death)
+Con<-Covid_Zambia %>% select(Confirmed)
+C<-ts(Con)
+par(mfrow=c(1,2))
+plot(C)
+plot(dts)
+
+```
+
+
+From the time plots we can see that the data is non stationary
+because it is an upward trend .To further verify stationarity we ploted the ACF
+and the PACF
+
+# acf and pacf plot 
+```{r}
+par(mfrow=c(1,2))
+acf(dts)
+pacf(C)
+```
+From  we see that in the ACF/Correlogram plots does not decay
+quickly , which indicates non stationarity. Hence there is need to make the data
+stationary by differencing.
+
+# Differencing the data
+```{r}
+A<-diff(dts)
+B<-diff(C)
+par(mfrow=c(1,2))
+plot(A)
+plot(B)
+```
+# ACF for differenced data
+```{r}
+acf(A)
+```
+We see that the data is still non stationary so we can further difference the data to make it stationary
+
+
+# second differencing of the data
+```{r}
+D<-diff(A)
+plot(D)
+```
+We see that the data is now stationary so we can further check the acf and the pacf
+
+# ACF AND PACF PLOTS
+```{r}
+par(mfrow=c(1,2))
+Acf(D)
+Pacf(D)
+
+```
+We see that now the data is stationary so now we need to
+come up with the model for this data.
+
+# Model Identification
+we see that the model is the ARIMA model with the following
+parameters. p=3,d=2 and q=3.
+First, let’s break down the components: Auto-Regressive (AR) Component
+
+(p=3): The AR component involves lagged values of the time series. In an
+ARIMA(3,2,3) model, you have three lagged values: 
+
+**AR(1): β1 · (Yt−1 − µ)**
+
+**AR(2): β2 · (Yt−2 − µ)**
+
+**AR(3): β3 · (Yt−3 − µ)**
+
+Here, Yt represents the value at time t, is the mean of the differenced series,
+andβ, β, and β3 are the coefficients to be estimated.
+Moving Average (MA) Component (q=3): The MA component involves
+lagged forecast errors. In an ARIMA(3,2,3) model, you have three lagged foreacast errors:
+
+**MA(1): θ1 · (εt−1)**
+
+**MA(2): θ2 · (εt−2)**
+
+**MA(3): θ3 · (εt−3)**
+
+Here, ϵt represents the error at time t, and *θ1, θ2, and θ3 * are the coefficients
+to be estimated.
+Differencing (d=2): You’ve differenced the series twice, so the equation for
+the second difference is:
+
+**∆2Yt = (1 − L)
+2
+· Yt**
+
+Here, L represents the lag operator, and (1 − L) signifies differencing the
+series twice.
+Combining all these components, the ARIMA(3,2,3) model can be expressed
+7
+as:
+
+**(1 - β1L − β2L
+2 − β3L
+3
+) · (1 − L)
+2
+· Yt = (1 + θ1L + θ2L
+2 + θ3L
+3
+) · εt**
+
+In practice, you would estimate the values of β1,β2, β3, θ1, θ2, and θ3 from
+your time series data using statistical software or libraries like R’s arima() funcation. The coefficients and the parameters of the model will depend on the
+specific data and time series you are modeling
+
+# Model selection
+```{r}
+Mod1<-arima(zamco,order=c(0,2,0))
+mod2<-arima(zamco,order=c(1,2,0))
+mod4<-arima(zamco,order=c(3,2,0))
+mod5<-arima(zamco,order=c(4,2,0))
+mod6<-arima(zamco,order=c(0,2,1))
+mod7<-arima(zamco,order=c(0,2,2))
+mod8<-arima(zamco,order=c(0,2,2))
+mod9<-arima(zamco,order=c(1,2,1))
+mod10<-arima(zamco,order=c(2,2,2))
+mod11<-arima(zamco,order=c(3,2,3))
+mod12<-arima(zamco,order=c(4,2,4))
+
+
+BIC(Mod1)
+BIC(mod2)
+BIC(mod4)
+BIC(mod5)
+BIC(mod10)
+BIC(mod11)
+
+```
+
+Mod(3,2,3):
+BIC: -962.5381 Mod11 has a Lower BIC value compared to all the model,
+indicating that it is a favorable model according to the BIC criterion.
+
+#Residuals Analysis
+```{r}
+H<-residuals(mod11)
+H
+checkresiduals(mod11)
+```
+## Ljung-Box test
+
+The Ljung-Box test is a statistical test used to assess whether there is any significant autocorrelation in the residuals of a time series model. Autocorrelation
+refers to the degree to which a variable is correlated with itself at different time
+lags. In the context of time series analysis, it is essential to check whether the
+residuals exhibit any patterns or correlations that are not accounted for by the
+model
+
+In Our case:
+The null hypothesis (H0): There is no significant autocorrelation in the
+residuals. The alternative hypothesis (H1): There is significant autocorrelation
+in the residuals.
+Since the p-value is greater than 0.05, we fail to reject the null hypothesis
+(H0). This means that there is not enough evidence to conclude that there is
+significant autocorrelation in the residuals of your ARIMA(3,2,3) model.
+In simpler terms, the Ljung-Box test suggests that the residuals from your
+model do not show significant autocorrelation, indicating that your model has
+adequately captured the temporal dependencies in the data. This is a positive
+result as it indicates that the model is doing a reasonable job in explaining the
+observed patterns in the time series data.
+
+
+# QQ Plots
+```{r}
+par(mfrow=c(1,1))
+
+qqnorm(H)
+
+qqline(H)
+
+
+```
+### **Interpret the Q-Q Plot:**
+We see points on the **Q-Q plot** closely follow a straight line, it
+suggests that the residuals approximate the assumed distribution (e.g., normal
+distribution). This is an indication that the model’s assumptions about the
+distribution of residuals are met. Deviations from a straight line can suggest
+departures from the assumed distribution. For example, if the points curve
+upward or downward away from the straight line, it may indicate non-normality
+in the residuals. Outliers in the Q-Q plot can also indicate potential issues with
+the model assumptions
+
+
+
+
+
+# Forecasting
+```{r}
+Q<-forecast(mod11,50)
+Q
+plot(Q)
+```
+The provided table represents forecasted data for a time series. Each row
+corresponds to a specific time step, and the table includes the following columns:
+Time Step: This column indicates the time step or period for which the
+forecasts are made. The time steps range from 439 to 448.
+Point Forecast: This column displays the point forecasts for each time step.
+These are the central or most likely values predicted by the forecasting model.
+For example, at time step 439, the point forecast is approximately **11.46292.**
+Lo 80: This column represents the lower bound of an **80**
+Hi 80: This column represents the upper bound of an **80**
+Lo 95: Similarly, this column represents the lower bound of a **95**
+Hi 95: This column corresponds to the upper bound of the **95**
+Interpretation:
+The table presents forecasts and prediction intervals for a time series. These
+intervals provide a range of values within which the actual future observations
+are expected to fall with certain levels of confidence **(80)**
+For decision-making and risk assessment, you may choose the prediction
+interval that aligns with your desired level of confidence. The wider **95**
+It’s essential to consider these forecasts and intervals in the context of your
+specific application and objectives to make informed decisions based on the
+range of potential outcomes.
+
+
+
+
+
+# Diagnostic 
+```{r}
+summary(mod11)
+```
+
